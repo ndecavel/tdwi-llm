@@ -63,58 +63,74 @@ def gradio_interface(file_name, splitter, chunk_size, chunk_overlap):
     
     # Convert images to base64 strings for HTML display
     image_outputs = [None, None]
-    if total_pages > 0:
+    for i in range(total_pages):
         buffered = io.BytesIO()
-        images[0].save(buffered, format="PNG")
+        images[i].save(buffered, format="PNG")
         img_str = base64.b64encode(buffered.getvalue()).decode("utf-8")
-        image_outputs[0] = f"<img src='data:image/png;base64,{img_str}' style='width:100%;'>"
-    if total_pages > 1:
-        buffered = io.BytesIO()
-        images[1].save(buffered, format="PNG")
-        img_str = base64.b64encode(buffered.getvalue()).decode("utf-8")
-        image_outputs[1] = f"<img src='data:image/png;base64,{img_str}' style='width:100%;'>"
+        image_outputs[i] = f"<img src='data:image/png;base64,{img_str}' style='width:100%;'>"
 
     # Format chunk details into an HTML table
-    chunk_details = """
-    <table style="width: 100%; border-collapse: collapse; color: white; background-color: #444;">
-        <thead>
-            <tr>
-                <th style="border: 1px solid #888; padding: 5px;">Chunk Number</th>
-                <th style="border: 1px solid #888; padding: 5px;">Chunk Text</th>
-                <th style="border: 1px solid #888; padding: 5px;">Token Count</th>
-                <th style="border: 1px solid #888; padding: 5px;">Length (Characters)</th>
-            </tr>
-        </thead>
-        <tbody>
+    # Define CSS styles for light and dark mode
+    table_style = """
+    <style>
+        :root {
+            --table-background: #ffffff;
+            --table-text-color: #000000;
+            --table-border-color: #cccccc;
+            --table-header-background: #f0f0f0;
+            --table-header-text-color: #000000;
+        }
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --table-background: #1e1e1e;
+                --table-text-color: #e0e0e0;
+                --table-border-color: #555555;
+                --table-header-background: #333333;
+                --table-header-text-color: #ffffff;
+            }
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background-color: var(--table-background);
+            color: var(--table-text-color);
+        }
+        th {
+            background-color: var(--table-header-background);
+            color: var(--table-header-text-color);
+        }
+        th, td {
+            border: 1px solid var(--table-border-color);
+            padding: 5px;
+        }
+        td {
+            word-wrap: break-word;
+        }
+    </style>
     """
-    
+
+    # Add the CSS to the chunk details
+    chunk_details = f"{table_style}<table><thead><tr><th>Chunk Number</th><th>Chunk Text</th><th>Token Count</th><th>Length (Characters)</th></tr></thead><tbody>"
+
     for i, chunk in enumerate(chunks):
         token_count = count_tokens(chunk)
         chunk_length = len(chunk)
         chunk_details += f"""
         <tr>
-            <td style="border: 1px solid #888; padding: 5px;">{i + 1}</td>
-            <td style="border: 1px solid #888; padding: 5px; word-wrap: break-word;">{chunk}</td>
-            <td style="border: 1px solid #888; padding: 5px;">{token_count}</td>
-            <td style="border: 1px solid #888; padding: 5px;">{chunk_length}</td>
+            <td>{i + 1}</td>
+            <td>{chunk}</td>
+            <td>{token_count}</td>
+            <td>{chunk_length}</td>
         </tr>
         """
-    
+
     chunk_details += "</tbody></table>"
-    
-    if splitter:
-        output = (f'<div style="color: white; background-color: #333; padding: 10px;">'
-                  f'<div><b>Number of Chunks Created:</b> {len(chunks)}</div>'
-                  f'<div><b>Chunk Details:</b><br>{chunk_details}</div>'
-                  '</div>')
-    else:
-        output = ""
-    
-    return description, output, image_outputs[0], image_outputs[1]
+
+    return description, chunk_details, image_outputs[0], image_outputs[1]
 
 # Create the Gradio app
 def create_app():
-    with gr.Blocks() as app:
+    with gr.Blocks() as app: # theme='bethecloud/storj_theme'
         gr.Markdown("# Text Splitting Visualization")
         gr.Markdown("""
             ## Instructions:
@@ -126,7 +142,7 @@ def create_app():
         
         with gr.Row():
             with gr.Column(scale=1):
-                file_input = gr.Dropdown(choices=file_names, label="Select PDF File")
+                file_input = gr.Dropdown(choices=[""] + file_names, label="Select PDF File", value=None)
         
         with gr.Row():
             with gr.Column(scale=1):
@@ -136,7 +152,7 @@ def create_app():
         
         with gr.Row():
             with gr.Column(scale=2):
-                splitter_input = gr.Dropdown(choices=["TokenTextSplitter", "SentenceSplitter"], label="Text Splitter")
+                splitter_input = gr.Dropdown(choices=["", "TokenTextSplitter", "SentenceSplitter"], label="Text Splitter", value=None)
                 chunk_size_input = gr.Slider(minimum=10, maximum=500, step=10, value=100, label="Chunk Size", visible=False)
                 chunk_overlap_input = gr.Slider(minimum=0, maximum=50, step=1, value=0, label="Chunk Overlap", visible=False)
             with gr.Column(scale=1):
@@ -158,6 +174,8 @@ def create_app():
         )
 
         def update_visuals_on_file_change(file_name, splitter, chunk_size, chunk_overlap):
+            if not file_name or not splitter:
+                return None, None, "", ""
             description, output, image1, image2 = gradio_interface(file_name, splitter, chunk_size, chunk_overlap)
             return image1, image2, description, output
 
@@ -179,3 +197,4 @@ def launch_app(TDS_FOLDER_PATH):
     file_names = sorted([f for f in os.listdir(directory) if f.endswith('.pdf')])
     app = create_app()
     app.launch(debug=False)
+
