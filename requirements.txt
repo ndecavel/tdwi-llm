@@ -1,0 +1,9 @@
+litellm
+gradio
+llama-index-core
+pymilvus
+pymilvus[model]
+PyMuPDF
+ragas
+giskard[llm]
+tqdm
