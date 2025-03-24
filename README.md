@@ -1,4 +1,4 @@
-# TDWI Workshop: LLM, RAG, and Agent Systems Resources
+# LLM Hands-On Labs: LLM, RAG, and Agent Systems Resources
 
 ![Last Updated](https://img.shields.io/github/last-commit/ndecavel/tdwi-llm?label=Last%20Updated)
 
